@@ -1,0 +1,22 @@
+{
+  "id": 123456,
+  "shareId": null,
+  "type": "error",
+  "metadata": {
+    "value": "undefined method `email' for nil",
+    "type": "NoMethodError",
+    "filename": "app/serializers/employee_serializer.rb",
+    "function": "serialize"
+  },
+  "title": "NoMethodError: undefined method `email' for nil",
+  "culprit": "app/serializers/employee_serializer.rb in serialize",
+  "level": "error",
+  "status": "unresolved",
+  "platform": "ruby",
+  "environment": "production",
+  "project": {"id": 3, "name": "api", "slug": "api"},
+  "firstSeen": "2026-08-20T09:12:44.120000Z",
+  "lastSeen": "2026-08-24T18:02:11.003000Z",
+  "count": "14",
+  "userCount": 0
+}

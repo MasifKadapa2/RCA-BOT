@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-white text-slate-900 antialiased;
+}
+
+.code-line-number {
+  @apply select-none pr-4 text-right text-slate-400 inline-block w-12 shrink-0;
+}

@@ -1,0 +1,64 @@
+{
+  "id": 987654321,
+  "eventID": "abcdef1234567890abcdef1234567890",
+  "title": "NoMethodError: undefined method `email' for nil",
+  "platform": "ruby",
+  "environment": "production",
+  "message": null,
+  "transaction": "EmployeesController#show",
+  "dateCreated": "2026-08-24T18:02:11.003000Z",
+  "dist": null,
+  "release": {"version": "api@1.42.0"},
+  "user": {"id": 42, "username": "svc-reader"},
+  "tags": [
+    {"key": "environment", "value": "production"},
+    {"key": "release", "value": "api@1.42.0"},
+    {"key": "server_name", "value": "web-7f3b"}
+  ],
+  "entries": [
+    {
+      "type": "exception",
+      "data": {
+        "values": [
+          {
+            "type": "NoMethodError",
+            "value": "undefined method `email' for nil",
+            "mechanism": {"type": "generic"},
+            "stacktrace": {
+              "frames": [
+                {
+                  "filename": "gems/railties-7.1.0/lib/rails/engine.rb",
+                  "function": "call",
+                  "module": "Rails::Engine",
+                  "lineNo": 135,
+                  "inApp": false
+                },
+                {
+                  "filename": "app/controllers/employees_controller.rb",
+                  "function": "show",
+                  "module": "EmployeesController",
+                  "lineNo": 12,
+                  "contextLine": "render json: EmployeeSerializer.new(@employee).serialize",
+                  "preContext": ["def show", "  @employee = Employee.find(params[:id])"],
+                  "postContext": ["end"],
+                  "inApp": true
+                },
+                {
+                  "filename": "app/serializers/employee_serializer.rb",
+                  "function": "serialize",
+                  "module": "EmployeeSerializer",
+                  "lineNo": 24,
+                  "colNo": 14,
+                  "contextLine": "email: @employee.user.email",
+                  "preContext": ["def serialize"],
+                  "postContext": [],
+                  "inApp": true
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

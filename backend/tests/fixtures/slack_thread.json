@@ -1,0 +1,20 @@
+[
+  {
+    "ts": "1756056000.000100",
+    "thread_ts": null,
+    "user": "USENTRYBOT",
+    "text": ":rotating_light: [Sentry] NoMethodError: undefined method `email' for nil:NilClass\nhttps://acme.sentry.io/issues/123456/\nProject: api · Environment: production · Events: 14"
+  },
+  {
+    "ts": "1756056300.000200",
+    "thread_ts": "1756056000.000100",
+    "user": "UDEV1",
+    "text": "seeing 500s on GET /api/v1/employees/:id again"
+  },
+  {
+    "ts": "1756056400.000300",
+    "thread_ts": "1756056000.000100",
+    "user": "UDEV2",
+    "text": "looks like employees without user accounts are affected"
+  }
+]

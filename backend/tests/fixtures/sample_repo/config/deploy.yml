@@ -1,0 +1,4 @@
+# Deployment configuration (should be ignored by the indexer as it is not source)
+
+region: eu-west-1
+workers: 4

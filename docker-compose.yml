@@ -1,0 +1,19 @@
+# RCA Bot V1 runs fully on a laptop; no cloud infrastructure required.
+# This compose file only provides Ollama for users who prefer it in a
+# container instead of installed natively.
+#
+#   docker compose up -d ollama
+#   docker compose exec ollama ollama pull qwen2.5-coder:3b
+#
+# Then set OLLAMA_BASE_URL=http://localhost:11434 in .env as usual.
+
+services:
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+
+volumes:
+  ollama_models:
