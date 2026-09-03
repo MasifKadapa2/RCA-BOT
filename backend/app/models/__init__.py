@@ -144,6 +144,15 @@ class Investigation(Base):
     lexical_results: Mapped[list | None] = mapped_column(JSON, nullable=True)
     vector_results: Mapped[list | None] = mapped_column(JSON, nullable=True)
     final_context: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    # V2 — Change Intelligence
+    regression_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    regression_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    regression_model: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    git_index_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    git_candidate_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    diff_analysis_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    causal_llm_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    regression_validation_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -191,3 +200,7 @@ class SlackMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
     incident: Mapped[Incident | None] = relationship(back_populates="slack_messages")
+
+
+# V2 — Change Intelligence Git models
+from app.models.git import GitChangeHunk, GitCommit, GitFileChange, GitIndexState  # noqa: E402

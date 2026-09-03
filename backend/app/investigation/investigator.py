@@ -42,6 +42,7 @@ class IncidentInvestigator:
         validator: RCAValidator | None = None,
         responder: SlackThreadResponder | None = None,
         context_builder: IncidentContextBuilder | None = None,
+        change_analyzer=None,  # V2 ChangeAnalyzer
     ) -> None:
         self._settings = settings
         self._session_factory = session_factory
@@ -54,6 +55,7 @@ class IncidentInvestigator:
         )
         self._responder = responder
         self._context_builder = context_builder or IncidentContextBuilder()
+        self._change_analyzer = change_analyzer
 
     # --- Entry point -----------------------------------------------------------
 
@@ -290,6 +292,44 @@ class IncidentInvestigator:
             )
         log.info("rca_bot.investigation_completed",
                  extra={"investigation_id": f"inv_{incident_id}"})
+
+        # 8. V2 — Change Intelligence (best effort; never breaks V1 RCA).
+        if self._change_analyzer is not None:
+            try:
+                intel = self._change_analyzer.analyze(
+                    repository_path=self._settings.repository_path,
+                    issue=issue_data,
+                    event=event_data,
+                    retrieval_results=results,
+                    v1_summary=validated.summary,
+                )
+                analysis = intel.analysis
+                with self._session_factory() as db:
+                    repo = IncidentRepository(db)
+                    inc_row = repo.get(incident_id)
+                    inv_row = repo.latest_investigation(incident_id)
+                    if inc_row is not None and inv_row is not None and analysis is not None:
+                        repo.save_regression(
+                            investigation=inv_row,
+                            analysis=analysis,
+                            model=self._settings.effective_llm_model,
+                            latencies=intel.latencies,
+                        )
+                        channel_id, thread_ts = inc_row.slack_channel_id, inc_row.slack_thread_ts
+                        post_ok = True
+                    else:
+                        post_ok = False
+                if post_ok and self._responder is not None:
+                    if analysis is not None:
+                        self._responder.post_regression(channel_id, thread_ts, analysis)
+                    elif intel.unavailable_reason:
+                        self._responder.post_change_intel_unavailable(
+                            channel_id, thread_ts, intel.unavailable_reason
+                        )
+                log.info("rca_bot.change_intel_finished",
+                         extra={"status": str(analysis.status) if analysis else "unavailable"})
+            except Exception:
+                log.exception("rca_bot.change_intel_error")  # V1 RCA already delivered
 
     def _fail(
         self,

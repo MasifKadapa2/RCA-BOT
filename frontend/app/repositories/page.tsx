@@ -21,6 +21,18 @@ export default function RepositoriesPage() {
     void refresh();
   }
 
+  const [gitMessage, setGitMessage] = useState<string | null>(null);
+  const [gitBusy, setGitBusy] = useState(false);
+
+  async function triggerGitIndex() {
+    setGitBusy(true);
+    setGitMessage(null);
+    const result = await api.indexGit();
+    setGitMessage(result.ok ? "Git history indexed." : `Git indexing failed: ${result.detail}`);
+    setGitBusy(false);
+    await refresh();
+  }
+
   async function triggerIndex() {
     setBusy(true);
     setMessage(null);
@@ -34,14 +46,19 @@ export default function RepositoriesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Repositories</h1>
-        <Button onClick={triggerIndex} disabled={busy}>
-          {busy ? "Indexing…" : "Run indexing"}
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={triggerIndex} disabled={busy}>
+            {busy ? "Indexing…" : "Run indexing"}
+          </Button>
+          <Button variant="outline" onClick={triggerGitIndex} disabled={gitBusy}>
+            {gitBusy ? "Indexing…" : "Index Git History"}
+          </Button>
+        </div>
       </div>
 
-      {message ? (
+      {message || gitMessage ? (
         <p className="rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">
-          {message}
+          {gitMessage ?? message}
         </p>
       ) : null}
 

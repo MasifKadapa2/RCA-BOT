@@ -109,6 +109,22 @@ def _migrate_investigations(engine) -> None:
             for col in ["retrieval_query", "lexical_results", "vector_results", "final_context"]:
                 if col not in existing:
                     to_add[col] = "JSON"
+            # V2 — Change Intelligence
+            if "regression_status" not in existing:
+                to_add["regression_status"] = "VARCHAR(32)"
+            if "regression_data" not in existing:
+                to_add["regression_data"] = "JSON"
+            if "regression_model" not in existing:
+                to_add["regression_model"] = "VARCHAR(255)"
+            for col in [
+                "git_index_latency_ms",
+                "git_candidate_latency_ms",
+                "diff_analysis_latency_ms",
+                "causal_llm_latency_ms",
+                "regression_validation_latency_ms",
+            ]:
+                if col not in existing:
+                    to_add[col] = "INTEGER"
             for col, sql_type in to_add.items():
                 conn.execute(text(f"ALTER TABLE investigations ADD COLUMN {col} {sql_type}"))
             if to_add:

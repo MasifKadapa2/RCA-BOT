@@ -141,3 +141,97 @@ class SlackResponseFormatter:
         blocks.append({"type": "divider"})
         blocks.append({"type": "context", "elements": [{"type": "mrkdwn", "text": " · ".join(footer_bits)}]})
         return blocks
+
+
+# --- V2 Change Intelligence ---------------------------------------------------
+
+def regression_blocks(analysis) -> list[dict]:
+    """Block Kit for a RegressionAnalysis (V2 Change Intelligence)."""
+    from app.schemas.regression import RegressionStatus
+
+    status = analysis.status
+    if status == RegressionStatus.LIKELY_REGRESSION:
+        headline = "🎯 Likely Regression"
+    elif status == RegressionStatus.POSSIBLE_REGRESSION:
+        headline = "❓ Possible Regression"
+    elif status == RegressionStatus.INSUFFICIENT_EVIDENCE:
+        headline = "⚠️ Insufficient evidence for change analysis"
+    else:
+        headline = "🚫 No confident regression identified"
+
+    blocks: list[dict] = [
+        {"type": "header", "text": {"type": "plain_text", "text": "🔍 Change Intelligence"}},
+        _section(f"*{headline}*"),
+    ]
+
+    likely = getattr(analysis, "likely_commit", None)
+    if likely:
+        cand = next((c for c in analysis.candidate_commits
+                     if c.short_sha.startswith(str(likely)[:7])), None)
+        if cand is not None:
+            lines = [f"`{cand.short_sha}` — \"{_clip(cand.message or '', 120)}\""]
+            if cand.author:
+                lines.append(f"Author: {cand.author}")
+            if cand.committed_at:
+                lines.append(f"Committed: {cand.committed_at}")
+            conf = f"Confidence: {analysis.confidence}%"
+            blocks.append(_section(f"*Likely Regression*\n" + "\n".join(lines) + f"\n{conf}"))
+
+            why = []
+            sig = cand.signals or {}
+            label = {"stack_file_match": "Modified the failing file",
+                     "retrieved_file_match": "Modified retrieved code",
+                     "symbol_match": "Changed the affected symbol",
+                     "line_proximity": "Changed lines near the failing location",
+                     "temporal_proximity": None,  # rendered with timing below
+                     "diff_relevance": "Diff mentions exception terms",
+                     "modified_files": None}
+            for key, text in label.items():
+                if key in sig and text:
+                    why.append(f"✓ {text}")
+            if "temporal_proximity" in sig and cand.committed_at:
+                why.append(f"✓ Commit occurred before first observed error "
+                           f"({_clip(cand.relevance_reason.split(';')[-1].strip(), 80)})")
+            if why:
+                blocks.append(_section("*Why this commit?*\n" + "\n".join(why)))
+
+    if analysis.causal_explanation:
+        blocks.append(_section(f"*Causal explanation*\n{_clip(analysis.causal_explanation)}"))
+
+    ev_lines: list[str] = []
+    for ref in (analysis.evidence_for or [])[:6]:
+        loc = f"`{ref.file_path}`"
+        if ref.start_line:
+            loc += f":{ref.start_line}" + (f"-{ref.end_line}" if ref.end_line else "")
+        ev_lines.append(f"• GIT `{ref.commit_sha[:8]}` {loc} — {_clip(ref.description, 140)}")
+    if ev_lines:
+        blocks.append(_section("*Git evidence*\n" + "\n".join(ev_lines)))
+    against = [
+        f"• GIT `{r.commit_sha[:8]}` `{r.file_path}` — {_clip(r.description, 120)}"
+        for r in (analysis.evidence_against or [])[:4]
+    ]
+    if against:
+        blocks.append(_section("*Evidence against*\n" + "\n".join(against)))
+
+    if analysis.candidate_commits and status in (
+        RegressionStatus.NO_CONFIDENT_REGRESSION,
+        RegressionStatus.POSSIBLE_REGRESSION,
+    ):
+        ranked = [f"{i}. `{c.short_sha}` ({c.score}) {_clip(c.message or '', 60)}"
+                  for i, c in enumerate(analysis.candidate_commits[:5], 1)]
+        blocks.append(_section("*Candidate commits*\n" + "\n".join(ranked)))
+
+    if analysis.unknowns:
+        blocks.append(_section("*Unknowns*\n" + "\n".join(
+            f"• {u}" for u in analysis.unknowns[:5])))
+    blocks.append(_section("⚠️ Deployment timing is unknown from Git metadata alone."))
+    if analysis.recommended_action:
+        blocks.append(_section(f"*Suggested action*\n{_clip(analysis.recommended_action, 400)}"))
+    return blocks
+
+
+def change_intel_unavailable_blocks(reason: str) -> list[dict]:
+    return [_section(
+        "ℹ️ RCA completed, but change intelligence is unavailable: "
+        f"{_clip(reason or 'repository is not a Git repository', 160)}"
+    )]

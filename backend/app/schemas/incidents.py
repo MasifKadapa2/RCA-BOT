@@ -94,3 +94,33 @@ class RetrievalTraceOut(BaseModel):
 
 class IndexRequest(BaseModel):
     repository_path: str | None = None
+
+
+# --- V2 — Change Intelligence -------------------------------------------------
+
+class RegressionOut(BaseModel):
+    status: str | None = None
+    likely_commit: str | None = None
+    confidence: int | None = None
+    causal_explanation: str | None = None
+    evidence_for: list[dict[str, Any]] = []
+    evidence_against: list[dict[str, Any]] = []
+    unknowns: list[str] = []
+    recommended_action: str | None = None
+    regression_model: str | None = None
+    candidates: list[dict[str, Any]] = []
+
+
+class TimelineEntry(BaseModel):
+    time: str | None = None
+    label: str
+    detail: str | None = None
+
+
+class GitIndexStatsOut(BaseModel):
+    commits_indexed: int = 0
+    new_commits: int = 0
+    skipped_commits: int = 0
+    files_changed: int = 0
+    hunks_indexed: int = 0
+    truncated_diffs: int = 0

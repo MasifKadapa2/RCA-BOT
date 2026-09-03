@@ -11,6 +11,7 @@ class EvidenceType(str, Enum):
     SENTRY = "SENTRY"
     SLACK = "SLACK"
     CODE = "CODE"
+    GIT = "GIT"  # V2 — Change Intelligence
 
 
 class Evidence(BaseModel):

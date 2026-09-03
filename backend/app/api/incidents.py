@@ -14,6 +14,7 @@ from app.schemas.incidents import (
     IncidentDetail,
     IncidentListItem,
     InvestigationSummary,
+    RegressionOut,
     RetrievalTraceOut,
 )
 
@@ -215,3 +216,75 @@ def dashboard_stats(db: Session = Depends(get_db)):
         "failed_investigations": failed,
         "average_confidence": round(float(avg_confidence), 1),
     }
+
+
+# --- V2 — Change Intelligence ---------------------------------------------------
+
+def _latest_regression(db: Session, incident_id: int) -> Investigation | None:
+    return db.execute(
+        select(Investigation)
+        .where(
+            Investigation.incident_id == incident_id,
+            Investigation.regression_data.is_not(None),
+        )
+        .order_by(desc(Investigation.id))
+        .limit(1)
+    ).scalars().first()
+
+
+@router.get("/incidents/{incident_id}/regression", response_model=RegressionOut)
+def get_regression(incident_id: int, db: Session = Depends(get_db)):
+    _get_incident_or_404(db, incident_id)
+    investigation = _latest_regression(db, incident_id)
+    if investigation is None:
+        raise HTTPException(status_code=404, detail="No change intelligence for this incident")
+    data = investigation.regression_data or {}
+    return RegressionOut(
+        status=investigation.regression_status,
+        likely_commit=data.get("likely_commit"),
+        confidence=data.get("confidence"),
+        causal_explanation=data.get("causal_explanation"),
+        evidence_for=data.get("evidence_for") or [],
+        evidence_against=data.get("evidence_against") or [],
+        unknowns=data.get("unknowns") or [],
+        recommended_action=data.get("recommended_action"),
+        regression_model=investigation.regression_model,
+        candidates=data.get("candidate_commits") or [],
+    )
+
+
+@router.get("/incidents/{incident_id}/changes", response_model=RegressionOut)
+def get_changes(incident_id: int, db: Session = Depends(get_db)):
+    """Alias of /regression focused on candidate commits."""
+    return get_regression(incident_id, db)
+
+
+@router.get("/incidents/{incident_id}/timeline")
+def get_timeline(incident_id: int, db: Session = Depends(get_db)):
+    from app.change_intelligence import build_timeline
+
+    incident = _get_incident_or_404(db, incident_id)
+    investigation = _latest_regression(db, incident_id) or (
+        db.execute(
+            select(Investigation).where(Investigation.incident_id == incident.id)
+            .order_by(desc(Investigation.id)).limit(1)
+        ).scalars().first()
+    )
+    analysis = None
+    if investigation and investigation.regression_data:
+        from app.schemas.regression import RegressionAnalysis
+
+        try:
+            analysis = RegressionAnalysis.model_validate(investigation.regression_data)
+        except Exception:
+            analysis = None
+    context = incident.context or {}
+    timeline = build_timeline(
+        analysis,
+        issue_first_seen=context.get("timestamp"),
+        investigation_created_at=incident.created_at,
+        investigation_completed_at=(
+            investigation.completed_at if investigation else None
+        ),
+    )
+    return {"entries": timeline}

@@ -95,6 +95,16 @@ class Settings(BaseSettings):
     # Slack behaviour
     slack_max_thread_messages: int = 200
 
+    # V2 — Change Intelligence
+    git_history_days: int = 90
+    git_max_commits: int = 500
+    change_window_hours: int = 24
+    max_change_candidates: int = 10
+    max_diff_chars: int = 12000
+    max_commit_diff_chars: int = 20000
+    max_patch_chars: int = 2000
+    git_timeout_seconds: int = 30
+
     @property
     def is_slack_configured(self) -> bool:
         return bool(self.slack_bot_token and self.slack_app_token)

@@ -71,3 +71,27 @@ def index_repository(payload: IndexRequest | None = None, db: Session = Depends(
         raise HTTPException(status_code=500, detail=f"Indexing failed: {exc}") from exc
 
     return {"status": "ok", "stats": stats}
+
+
+@router.post("/repositories/index_git")
+def index_git_history(payload: IndexRequest | None = None, db: Session = Depends(get_db)) -> dict:
+    """Incremental Git history indexing for Change Intelligence."""
+    from app.core.errors import RepositoryNotFoundError
+    from app.git import GitIndexService, NotAGitRepositoryError
+
+    settings = get_settings()
+    repo_path = (payload.repository_path if payload else "") or settings.repository_path
+    if not repo_path:
+        raise HTTPException(status_code=400, detail="REPOSITORY_PATH is not configured")
+    repo_path = os.path.abspath(os.path.expanduser(repo_path))
+    if not os.path.isdir(repo_path):
+        raise HTTPException(status_code=400, detail=f"Repository path not found: {repo_path}")
+
+    try:
+        service = GitIndexService(settings)
+        stats, _repo = service.index(db, repository_path=repo_path)
+    except NotAGitRepositoryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except RepositoryNotFoundError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"status": "ok", "stats": stats.__dict__}

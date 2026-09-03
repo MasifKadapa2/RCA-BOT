@@ -211,3 +211,45 @@ class IncidentRepository:
                 )
             )
         self._db.commit()
+
+    # --- V2 — Change Intelligence --------------------------------------------
+
+    def save_regression(
+        self,
+        investigation: Investigation,
+        analysis,
+        model: str | None = None,
+        latencies: dict[str, int] | None = None,
+    ) -> None:
+        latencies = latencies or {}
+        investigation.regression_status = str(analysis.status)
+        investigation.regression_model = model
+        investigation.regression_data = analysis.model_dump()
+        for key, value in latencies.items():
+            if hasattr(investigation, key) and isinstance(value, int):
+                setattr(investigation, key, value)
+        # Persist validated GIT evidence rows too.
+        for ref in analysis.evidence_for:
+            self._db.add(
+                Evidence(
+                    investigation_id=investigation.id,
+                    source_type="GIT",
+                    source_reference=(
+                        f"{ref.commit_sha[:8]}:{ref.file_path}"
+                        + (f":{ref.start_line}-{ref.end_line}" if ref.start_line else "")
+                    ),
+                    explanation=ref.description,
+                    is_valid=True,
+                )
+            )
+        for ref in analysis.evidence_against:
+            self._db.add(
+                Evidence(
+                    investigation_id=investigation.id,
+                    source_type="GIT",
+                    source_reference=f"{ref.commit_sha[:8]}:{ref.file_path}",
+                    explanation=f"(against) {ref.description}",
+                    is_valid=True,
+                )
+            )
+        self._db.commit()

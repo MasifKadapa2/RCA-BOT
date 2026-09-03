@@ -94,8 +94,14 @@ def build_container(settings: Settings | None = None) -> Container:
         responder = SlackThreadResponder(gateway, formatter)
 
     if llm_provider is not None and settings.repository_path:
+        from app.change_intelligence import ChangeAnalyzer
         from app.investigation.validator import RCAValidator
 
+        change_analyzer = ChangeAnalyzer(
+            settings=settings,
+            llm_provider=llm_provider,
+            session_factory=session_factory,
+        )
         investigator = IncidentInvestigator(
             settings=settings,
             session_factory=session_factory,
@@ -105,6 +111,7 @@ def build_container(settings: Settings | None = None) -> Container:
             llm_provider=llm_provider,
             validator=RCAValidator(settings.repository_path),
             responder=responder,
+            change_analyzer=change_analyzer,
         )
 
     return Container(

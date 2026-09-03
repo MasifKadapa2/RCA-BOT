@@ -55,3 +55,18 @@ class SlackThreadResponder:
         self._gateway.post_reply(
             channel_id, thread_ts, text=fallback or "", blocks=blocks or None
         )
+
+    # --- V2 — Change Intelligence ---------------------------------------------
+
+    def post_regression(self, channel_id: str, thread_ts: str, analysis) -> None:
+        from app.slack.formatter import regression_blocks
+
+        blocks = regression_blocks(analysis)
+        first = next((b["text"]["text"] for b in blocks if b.get("type") == "section"), "Change Intelligence")
+        self._post(channel_id, thread_ts, blocks, fallback=first)
+
+    def post_change_intel_unavailable(self, channel_id: str, thread_ts: str, reason: str) -> None:
+        from app.slack.formatter import change_intel_unavailable_blocks
+
+        self._post(channel_id, thread_ts, change_intel_unavailable_blocks(reason),
+                   fallback="ℹ️ Change intelligence unavailable.")

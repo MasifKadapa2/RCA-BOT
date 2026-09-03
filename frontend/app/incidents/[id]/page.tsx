@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { api, formatDateTime } from "@/lib/api";
+import { ChangeIntelligenceCard, TimelineCard } from "@/components/change-intelligence";
 import { StatusBadge } from "@/components/ui/badge";
 import { Card, CardBody, CardHeader } from "@/components/ui/card";
 import { CodeSnippet } from "@/components/code-viewer";
@@ -21,7 +22,9 @@ export default async function IncidentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [incident, retrieval] = await Promise.all([api.incident(id), api.retrieval(id)]);
+  const [incident, retrieval, regression, timeline] = await Promise.all([
+    api.incident(id), api.retrieval(id), api.regression(id), api.timeline(id),
+  ]);
 
   if (!incident) {
     return (
@@ -252,6 +255,10 @@ export default async function IncidentDetailPage({
               </div>
             )}
           </Section>
+
+          <ChangeIntelligenceCard regression={regression} />
+
+          <TimelineCard entries={timeline?.entries ?? []} />
 
           <Section title="Performance">
             <div className="space-y-2 text-sm">
