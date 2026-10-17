@@ -8,9 +8,11 @@ RCA Bot is a **local-first** assistant that investigates Sentry production
 issues from Slack. A developer replies `@rca-bot investigate` in a Sentry
 alert thread; the bot fetches authoritative issue/event data from the Sentry
 Web API, retrieves relevant code from **one configured local repository**,
-asks a local LLM (Ollama) for a structured RCA, validates it against real
-evidence, posts it back into the same Slack thread, and persists everything
-for the Next.js dashboard.
+asks an LLM (Ollama local by default; Gemini/Groq optional) for a structured
+RCA, validates it against real evidence, posts it back into the same Slack
+thread, and persists everything for the Next.js dashboard. V2 additionally
+posts evidence-backed **change intelligence** (which recent commit most
+likely caused it) in the same thread.
 
 ## Architecture (read ARCHITECTURE.md for details)
 
@@ -20,13 +22,18 @@ for the Next.js dashboard.
   URL resolver, payload normalization.
 * `backend/app/ingestion/` — file filtering (ignores `data/`/`chroma`/secrets), tree-sitter chunking with
   line-based fallback, hashing, incremental indexer. Vector store: `ChromaVectorStore` (persistent, default) + `InMemoryVectorStore` (tests).
-  CLI: `python -m app.ingestion.index_repository`.
+  CLI: `python -m app.ingestion.index_repository`, git CLI: `python -m app.ingestion.index_git`.
 * `backend/app/retrieval/` — query building, **Lexical** (`LexicalRetriever`, alias `ExactRetriever`) + **Vector** (`Chroma`), `CodeRetriever` hybrid merge with `retrieve_with_trace` (query/lexical/vector/final).
-* `backend/app/llm/` — `LLMProvider` abstraction; Ollama; grounded prompts with `analysis_status` (`CONFIDENT`/`LOW_CONFIDENCE`/`INSUFFICIENT_EVIDENCE`).
-* `backend/app/investigation/` — orchestrator (records `*_latency_ms`, `llm_model`/`embedding_model`), context builder, **strict** `RCAValidator` (never clamps lines).
-* `backend/app/api/`, `app/main.py` — FastAPI (`/health`, `/api/incidents*`, `/api/incidents/{id}/retrieval`, `/api/repositories*`).
-* `backend/app/evaluation/` — 20-case RAG dataset + `Recall@k`/`MRR` (`python -m app.evaluation.run`).
-* `frontend/` — Next.js App Router dashboard (retrieval trace + performance + `analysis_status` badge).
+* `backend/app/llm/` — `LLMProvider` abstraction; Ollama / Groq / generic
+  OpenAI-compatible cloud (cloud > Groq > Ollama); grounded prompts with
+  `analysis_status` (`CONFIDENT`/`LOW_CONFIDENCE`/`INSUFFICIENT_EVIDENCE`) and
+  V2 `prompts_v2.py` (`FACT`/`INFERENCE`/`HYPOTHESIS`).
+* `backend/app/investigation/` — orchestrator (records `*_latency_ms`, `llm_model`/`embedding_model`), context builder, **strict** `RCAValidator` (never clamps lines) + `RegressionValidator` (git SHA/file/line grounding).
+* `backend/app/git/` — safe read-only `git` layer (fixed binary, list args, `shell=False`, timeouts, bounded output).
+* `backend/app/change_intelligence/` — candidate generation (explainable weighted signals), bounded diff extraction, causal analysis.
+* `backend/app/api/`, `app/main.py` — FastAPI (`/health`, `/api/incidents*`, `/api/incidents/{id}/retrieval|regression|changes|timeline`, `/api/repositories*` incl. `index_git`).
+* `backend/app/evaluation/` — 20-case RAG dataset + `Recall@k`/`MRR` (`python -m app.evaluation.run`) and 20-case regression dataset + `Recall@k`/`MRR`/`classification_accuracy` (`python -m app.evaluation.run_regression`).
+* `frontend/` — Next.js App Router dashboard (retrieval trace + performance + `analysis_status` badge + change intelligence + timeline).
 
 ## Coding conventions
 
@@ -64,9 +71,12 @@ cd backend && python -m pytest tests -v      # must pass before any handoff
 * The LLM output is untrusted: strictly validate files/lines/evidence (`RCAValidator` never clamps, marks invalid) before persisting or posting.
 * The application executes nothing suggested by the model.
 
-## Forbidden functionality (belongs to V2/V3 — do NOT implement)
+## Forbidden functionality (belongs to V3 — do NOT implement)
 
-* Git history, blame, commit analysis
+V2 change intelligence (read-only git history, candidate ranking, regression
+validation, generic cloud/Groq LLM providers) is **already implemented** —
+extend it rather than reimplement it. Still out of scope:
+
 * GitHub integration, PR/branch creation
 * Automatic code modification or execution
 * Test execution by the LLM
@@ -74,7 +84,7 @@ cd backend && python -m pytest tests -v      # must pass before any handoff
 * Multi-repository support
 * Autonomous agents, background investigation loops
 * Deployment, logs/traces, additional incident sources
-* Cloud LLMs, paid vector DBs, LangChain/LangGraph (unless already required)
+* Paid vector DBs, LangChain/LangGraph (unless already required)
 
 ## How to run
 
@@ -92,6 +102,11 @@ cd backend && python -m app.slack
 Repository indexing (Chroma persistent at `data/chroma`):
 ```bash
 cd backend && python -m app.ingestion.index_repository
+```
+
+Git history indexing for change intelligence (V2):
+```bash
+cd backend && python -m app.ingestion.index_git
 ```
 
 Frontend:
