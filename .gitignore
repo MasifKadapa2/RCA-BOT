@@ -17,6 +17,7 @@ out/
 # Local data (sqlite db, chroma vectors)
 data/*
 !data/.gitkeep
+backend/data/
 
 # OS
 .DS_Store
